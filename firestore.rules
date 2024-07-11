@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function getCategories() {
+      return [
+        'fitness',
+        'food',
+        'housing',
+        'insurance',
+        'medical',
+        'miscellaneous',
+        'hygiene',
+        'recreation',
+        'savings',
+        'subscriptions',
+        'transportation',
+        'utilities'
+      ];
+    }
+
+    function getScheduleTypes() {
+      return [
+        'outgoing',
+        'incoming'
+      ];
+    }
+
+    function validateReadAuth(request, resource) {
+      return request.auth != null &&
+             request.auth.uid == resource.data.uid;
+    }
+
+    function validateWriteAuth(request) {
+      return request.auth != null &&
+             request.auth.uid == request.resource.data.uid;
+    }
+
+    match /{document=**} {
+      allow read: if validateReadAuth(request, resource);
+      allow delete: if validateReadAuth(request, resource);
+    }
+
+    match /transactions/{document=**} {
+      function validateTransaction(data) {
+        return data != null &&
+               data.amount_cents >= 0 &&
+               data.category in getCategories() &&
+               data.created_on != null &&
+               data.name != "";
+      }
+
+      allow write: if validateWriteAuth(request) &&
+                      validateTransaction(request.resource.data);
+    }
+
+    match /schedules/{document=**} {
+      function validateSchedule(data) {
+        return data != null &&
+               data.amount_cents > 0 &&
+               data.category in getCategories() &&
+               data.created_on != null &&
+               data.frequency_months > 0 &&
+               data.name != "" &&
+               data.started_on != null &&
+               data.type in getScheduleTypes();
+      }
+
+      allow write: if validateWriteAuth(request) &&
+                      validateSchedule(request.resource.data);
+    }
+  }
+}
